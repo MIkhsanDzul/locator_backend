@@ -18,18 +18,45 @@ func Register(c *gin.Context) {
 		return
 	}
 
+	// ⛔ Validasi panjang username
+	if len(user.Username) > 16 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "username must be at most 16 characters"})
+		return
+	}
+
+	ctx := context.Background()
+	client, err := firebase.App.DatabaseWithURL(ctx, "https://locator-dccf6-default-rtdb.asia-southeast1.firebasedatabase.app/")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "firebase init failed"})
+		return
+	}
+
+	// 🔍 Cek username sudah ada belum
+	usersRef := client.NewRef("users")
+	var users map[string]map[string]interface{}
+	if err := usersRef.Get(ctx, &users); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check existing users"})
+		return
+	}
+
+	for _, u := range users {
+		if uname, ok := u["username"].(string); ok && uname == user.Username {
+			c.JSON(http.StatusConflict, gin.H{"error": "username already taken"})
+			return
+		}
+	}
+
+	// 🔐 Hash password
 	hashedPassword, _ := utils.HashPassword(user.Password)
 	user.Password = hashedPassword
 
-	ctx := context.Background()
-	client, _ := firebase.App.DatabaseWithURL(ctx, "https://locator-dccf6-default-rtdb.asia-southeast1.firebasedatabase.app/")
-	ref := client.NewRef("users")
-
-	_, err := ref.Push(ctx, user)
+	// ✅ Push user baru
+	_, err = usersRef.Push(ctx, user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to register"})
 		return
 	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "user registered"})
 }
 

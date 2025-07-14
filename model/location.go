@@ -1,8 +1,9 @@
 package model
 
 type Location struct {
-	Name string `json:"name"`
+	Username string `json:"username"`
 	Latitude  float64 `json:"latitude"`
 	Longitude float64 `json:"longitude"`
 	Timestamp int64 `json:"timestamp"`
+	TimestampFormatted string `json:"timestamp_formatted,omitempty"`
 }
