@@ -12,8 +12,19 @@ func main() {
 
 	r := gin.Default()
 
-	r.POST("/register", controller.Register)
-	r.POST("/login", controller.Login)
+	api := r.Group("/api")
+	{
+		auth := api.Group("/auth")
+		{
+			auth.POST("/register", controller.Register)
+			auth.POST("/login", controller.Login)
+		}	
+		location := api.Group("/location")
+		{
+			location.POST("/update", controller.UpLocation)
+			location.GET("/get", controller.GetLocation)
+		}
+	} 
 
 	r.Run(":8080")
 }
