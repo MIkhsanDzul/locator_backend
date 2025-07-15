@@ -25,35 +25,22 @@ func Register(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	client, err := firebase.App.DatabaseWithURL(ctx, "https://locator-dccf6-default-rtdb.asia-southeast1.firebasedatabase.app/")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "firebase init failed"})
-		return
-	}
+	docRef := firebase.FirestoreClient.Collection("users").Doc(user.Username)
 
 	// 🔍 Cek username sudah ada belum
-	usersRef := client.NewRef("users")
-	var users map[string]map[string]interface{}
-	if err := usersRef.Get(ctx, &users); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check existing users"})
+	doc, err := docRef.Get(ctx)
+	if err == nil && doc.Exists() {
+		c.JSON(http.StatusConflict, gin.H{"error": "username already taken"})
 		return
 	}
 
-	for _, u := range users {
-		if uname, ok := u["username"].(string); ok && uname == user.Username {
-			c.JSON(http.StatusConflict, gin.H{"error": "username already taken"})
-			return
-		}
-	}
-
-	// 🔐 Hash password
 	hashedPassword, _ := utils.HashPassword(user.Password)
 	user.Password = hashedPassword
 
 	// ✅ Push user baru
-	_, err = usersRef.Push(ctx, user)
+	_, err = docRef.Set(ctx, user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to register"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save user"})
 		return
 	}
 
@@ -61,27 +48,35 @@ func Register(c *gin.Context) {
 }
 
 func Login(c *gin.Context) {
-	var loginData model.User
+	var loginData model.UserLogin
 	if err := c.ShouldBindJSON(&loginData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
 
 	ctx := context.Background()
-	client, _ := firebase.App.DatabaseWithURL(ctx, "https://locator-dccf6-default-rtdb.asia-southeast1.firebasedatabase.app/")
-	ref := client.NewRef("users")
-
-	var users map[string]model.User
-	if err := ref.Get(ctx, &users); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
+	docRef := firebase.FirestoreClient.Collection("users").Doc(loginData.Username)
+	doc, err := docRef.Get(ctx)
+	if err != nil || !doc.Exists() {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
 
-	for _, u := range users {
-		if u.Username == loginData.Username && utils.CheckPasswordHash(loginData.Password, u.Password) {
-			c.JSON(http.StatusOK, gin.H{"message": "login successful", "name": u.Username})
-			return
-		}
+	var user model.User
+	if err := doc.DataTo(&user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user"})
+		return
 	}
-	c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+
+	if !utils.CheckPasswordHash(loginData.Password, user.Password) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "login successful",
+		"username": user.Username,
+		"email": user.Email,
+	})
+		
 }

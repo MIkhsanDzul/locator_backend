@@ -9,6 +9,7 @@ import (
 
 func main() {
 	firebase.InitFirebase()
+	firebase.InitFirestore()
 
 	r := gin.Default()
 
@@ -22,8 +23,8 @@ func main() {
 		}	
 		location := api.Group("/location")
 		{
-			location.POST("/update", controller.UpLocation)
-			location.GET("/get", controller.GetLocation)
+			location.POST("/update", controller.SaveLocation)
+			location.GET("/get", controller.GetLocations)
 		}
 	} 
 
