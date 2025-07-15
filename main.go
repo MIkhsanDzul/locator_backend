@@ -18,6 +18,7 @@ func main() {
 		{
 			auth.POST("/register", controller.Register)
 			auth.POST("/login", controller.Login)
+			auth.GET("/users", controller.GetUsers)
 		}	
 		location := api.Group("/location")
 		{

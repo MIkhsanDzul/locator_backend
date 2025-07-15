@@ -78,7 +78,7 @@ func Login(c *gin.Context) {
 	}
 
 	for _, u := range users {
-		if u.Email == loginData.Email && utils.CheckPasswordHash(loginData.Password, u.Password) {
+		if u.Username == loginData.Username && utils.CheckPasswordHash(loginData.Password, u.Password) {
 			c.JSON(http.StatusOK, gin.H{"message": "login successful", "name": u.Username})
 			return
 		}

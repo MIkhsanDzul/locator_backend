@@ -130,3 +130,21 @@ func GetLocation(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"locations": result})
 }
+
+func GetUsers(c *gin.Context) {
+	ctx := context.Background()
+	client, err := firebase.App.DatabaseWithURL(ctx, "https://locator-dccf6-default-rtdb.asia-southeast1.firebasedatabase.app/")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "firebase init failed"})
+		return
+	}
+
+	usersRef := client.NewRef("users")
+	var users map[string]map[string]interface{}
+	if err := usersRef.Get(ctx, &users); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"users": users})
+}
