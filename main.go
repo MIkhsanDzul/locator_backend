@@ -9,7 +9,6 @@ import (
 )
 
 func main() {
-	firebase.InitFirebase()
 	firebase.InitFirestore()
 
 	r := gin.Default()
