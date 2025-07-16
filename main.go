@@ -13,7 +13,6 @@ func main() {
 	firebase.InitFirestore()
 
 	r := gin.Default()
-
 	r.Use(middleware.CORSMiddleware())
 
 	api := r.Group("/api")

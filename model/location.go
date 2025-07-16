@@ -7,3 +7,6 @@ type Location struct {
 	Timestamp int64 `json:"timestamp"`
 	TimestampFormatted string `json:"timestamp_formatted,omitempty"`
 }
+type LocationResponse struct {
+	Locations []Location `json:"locations"`
+}

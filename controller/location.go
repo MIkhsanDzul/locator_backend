@@ -45,11 +45,11 @@ func GetUsers(c *gin.Context) {
 		return
 	}
 
-	var users []model.User
-	for _, doc := range docs {
+	users := make([]model.User, len(docs))
+	for i, doc := range docs {
 		var user model.User
 		if err := doc.DataTo(&user); err == nil {
-			users = append(users, user)
+			users[i] = user
 		}
 	}
 
@@ -97,11 +97,11 @@ func GetLocations(c *gin.Context) {
 		return
 	}
 
-	var result []model.Location
-	for _, doc := range locations {
+	result := make([]model.Location, len(locations))
+	for i, doc := range locations {
 		var loc model.Location
 		doc.DataTo(&loc)
-		result = append(result, loc)
+		result[i] = loc
 	}
 
 	c.JSON(http.StatusOK, gin.H{"locations": result})
