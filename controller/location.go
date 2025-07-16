@@ -87,6 +87,10 @@ func SaveLocation(c *gin.Context) {
 		return
 	}
 
+	loc = model.Location{
+		Triggered: false,
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "location saved"})
 }
 
