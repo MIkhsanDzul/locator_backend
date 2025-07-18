@@ -67,7 +67,6 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	//Push firestore
 	// Ubah field "triggered" jadi true di Firestore
 	_, err = firebase.FirestoreClient.
 		Collection("locations").

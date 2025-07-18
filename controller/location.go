@@ -6,6 +6,7 @@ import (
 	"locator-backend/firebase"
 	"locator-backend/model"
 	"locator-backend/utils"
+	"log"
 	"time"
 
 	// "locator-backend/utils"
@@ -44,7 +45,6 @@ func SaveLocation(c *gin.Context) {
 	}
 
 	loc.Triggered = false
-	loc.IsRealtime = false
 
 	// Simpan timestamp ke PostgreSQL
 	timestamp := time.Now().UnixMilli()
@@ -56,15 +56,22 @@ func SaveLocation(c *gin.Context) {
 		return
 	}
 
+	// Ambil data sebelumnya dari Firestore
+	existing := doc.Data()
+	isRealtime, ok := existing["is_realtime"].(bool)
+	if !ok {
+		isRealtime = false // default kalau field belum ada
+	}
+
 	// Simpan ke Firestore
 	firestoreData := map[string]interface{}{
 		"latitude":  loc.Latitude,
 		"longitude": loc.Longitude,
-		"is_realtime": loc.IsRealtime,
+		"is_realtime": isRealtime,
 		"triggered": loc.Triggered,
 		"username":  loc.Username,
 	}
-	_, err = firebase.FirestoreClient.Collection("locations").Doc(loc.Username).Set(context.Background(), firestoreData)
+	_, err = docRef.Set(context.Background(), firestoreData, firestore.MergeAll)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save location to Firestore"})
 		return
@@ -129,6 +136,18 @@ func GetLocations(c *gin.Context) {
 		return
 	}
 
+	_, err = firebase.FirestoreClient.
+		Collection("locations").
+		Doc(username).
+		Set(context.Background(), map[string]interface{}{
+			"triggered": true,
+		}, firestore.MergeAll)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update Firestore triggered field"})
+		return
+	}
+
 	// Berhasil
 	c.JSON(http.StatusOK, gin.H{"locations": locations})
 }
@@ -136,35 +155,71 @@ func GetLocations(c *gin.Context) {
 
 func Realtime(c *gin.Context) {
 	username := c.Query("username")
-	isRealtimeStr := c.Query("isrealtime")
+	isRealtime := c.Query("isrealtime") == "true"
 
 	if username == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "username is required"})
 		return
 	}
 
-	isRealtime := false
-	if isRealtimeStr == "true" {
-		isRealtime = true
-	}
-
-	// Cek apakah user ada di Firestore
 	docRef := firebase.FirestoreClient.Collection("locations").Doc(username)
-	doc, err := docRef.Get(context.Background())
-	if err != nil || !doc.Exists() {
+
+	// Cek keberadaan dokumen
+	docSnap, err := docRef.Get(context.Background())
+	if err != nil || !docSnap.Exists() {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
 
 	// Update is_realtime
-	_, err = docRef.Set(context.Background(), map[string]interface{}{
+	if _, err := docRef.Set(context.Background(), map[string]interface{}{
 		"is_realtime": isRealtime,
-	}, firestore.MergeAll)
-
-	if err != nil {
+	}, firestore.MergeAll); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update is_realtime"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "is_realtime updated", "value": isRealtime})
+	if isRealtime {
+		// Jalankan goroutine untuk update triggered setiap 5 detik
+		go func() {
+			for {
+				// Ambil status terbaru
+				snap, err := docRef.Get(context.Background())
+				if err != nil || !snap.Exists() {
+					log.Println("Failed to fetch latest Firestore document")
+					return
+				}
+
+				currentRealtime, _ := snap.Data()["is_realtime"].(bool)
+				if !currentRealtime {
+					// Matikan triggered jika realtime false
+					_, _ = docRef.Set(context.Background(), map[string]interface{}{
+						"triggered": false,
+					}, firestore.MergeAll)
+					return
+				}
+
+				// Set triggered = true
+				_, _ = docRef.Set(context.Background(), map[string]interface{}{
+					"triggered": true,
+				}, firestore.MergeAll)
+
+				time.Sleep(5 * time.Second)
+			}
+		}()
+	} else {
+		// Matikan triggered jika non-realtime
+		if _, err := docRef.Set(context.Background(), map[string]interface{}{
+			"triggered": false,
+		}, firestore.MergeAll); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update triggered to false"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "is_realtime updated",
+		"is_realtime": isRealtime,
+	})
 }
+
