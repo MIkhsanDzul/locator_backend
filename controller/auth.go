@@ -1,13 +1,12 @@
 package controller
 
 import (
-	"context"
 	"locator-backend/model"
 	"locator-backend/utils"
-	"locator-backend/firebase"
+	// "locator-backend/firebase"
 	"net/http"
+	"locator-backend/config"
 
-	// "firebase.google.com/go/v4/db"
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,21 +23,11 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	ctx := context.Background()
-	docRef := firebase.FirestoreClient.Collection("users").Doc(user.Username)
-
-	// Cek username sudah ada belum
-	doc, err := docRef.Get(ctx)
-	if err == nil && doc.Exists() {
-		c.JSON(http.StatusConflict, gin.H{"error": "username already taken"})
-		return
-	}
-
 	hashedPassword, _ := utils.HashPassword(user.Password)
 	user.Password = hashedPassword
 
 	// Push baru
-	_, err = docRef.Set(ctx, user)
+	err := config.DB.Create(&user).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save user"})
 		return
@@ -48,35 +37,36 @@ func Register(c *gin.Context) {
 }
 
 func Login(c *gin.Context) {
-	var loginData model.UserLogin
-	if err := c.ShouldBindJSON(&loginData); err != nil {
+	var user model.UserLogin
+	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
 
-	ctx := context.Background()
-	docRef := firebase.FirestoreClient.Collection("users").Doc(loginData.Username)
-	doc, err := docRef.Get(ctx)
-	if err != nil || !doc.Exists() {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+	var dbUser model.User
+	err := config.DB.Where("username = ?", user.Username).First(&dbUser).Error
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
 		return
 	}
 
-	var user model.User
-	if err := doc.DataTo(&user); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user"})
+	if !utils.CheckPasswordHash(user.Password, dbUser.Password) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
 		return
 	}
 
-	if !utils.CheckPasswordHash(loginData.Password, user.Password) {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+	location, err := FetchLocationData(c.Request.Context(), user.Username)
+	if len(location) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found or no location data"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "login successful",
-		"username": user.Username,
-		"email": user.Email,
-	})
-		
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch location"})
+		panic(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "login successful", "location": location})
 }
+

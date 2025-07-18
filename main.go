@@ -1,9 +1,11 @@
 package main
 
 import (
+	"locator-backend/config"
 	"locator-backend/controller"
 	"locator-backend/firebase"
 	"locator-backend/middleware"
+	"locator-backend/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,6 +15,10 @@ func main() {
 
 	r := gin.Default()
 	r.Use(middleware.CORSMiddleware())
+
+	config.ConnectDatabase()
+
+	config.DB.AutoMigrate(&model.User{})
 
 	api := r.Group("/api")
 	{
@@ -32,3 +38,4 @@ func main() {
 
 	r.Run(":8008")
 }
+

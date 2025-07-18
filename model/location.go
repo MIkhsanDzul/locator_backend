@@ -12,3 +12,7 @@ type Location struct {
 type LocationResponse struct {
 	Locations []Location `json:"locations"`
 }
+
+func (l *Location) SetUsernameFromDB(username string) {
+	l.Username = username
+}
