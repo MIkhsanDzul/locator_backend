@@ -1,13 +1,18 @@
 package controller
 
 import (
+	"context"
+	"locator-backend/firebase"
 	"locator-backend/model"
 	"locator-backend/utils"
-	// "locator-backend/firebase"
-	"net/http"
-	"locator-backend/config"
 
+	// "locator-backend/firebase"
+	"locator-backend/config"
+	"net/http"
+
+	"cloud.google.com/go/firestore"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func Register(c *gin.Context) {
@@ -55,18 +60,26 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	location, err := FetchLocationData(c.Request.Context(), user.Username)
-	if len(location) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found or no location data"})
+	// Cek dan update/insert lokasi
+	err = config.SaveLocationToPostgres(user.Username, 0, "", 0, 0)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save location to database"})
 		return
 	}
+
+	//Push firestore
+	// Ubah field "triggered" jadi true di Firestore
+	_, err = firebase.FirestoreClient.
+		Collection("locations").
+		Doc(user.Username).
+		Set(context.Background(), map[string]interface{}{
+			"triggered": true,
+		}, firestore.MergeAll)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch location"})
-		panic(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update Firestore triggered field"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "login successful", "location": location})
+	c.JSON(http.StatusOK, gin.H{"message": "login successful"})
 }
-
