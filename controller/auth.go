@@ -18,7 +18,7 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	// ⛔ Validasi panjang username
+	// Validasi panjang username
 	if len(user.Username) > 16 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "username must be at most 16 characters"})
 		return
@@ -27,7 +27,7 @@ func Register(c *gin.Context) {
 	ctx := context.Background()
 	docRef := firebase.FirestoreClient.Collection("users").Doc(user.Username)
 
-	// 🔍 Cek username sudah ada belum
+	// Cek username sudah ada belum
 	doc, err := docRef.Get(ctx)
 	if err == nil && doc.Exists() {
 		c.JSON(http.StatusConflict, gin.H{"error": "username already taken"})
@@ -37,7 +37,7 @@ func Register(c *gin.Context) {
 	hashedPassword, _ := utils.HashPassword(user.Password)
 	user.Password = hashedPassword
 
-	// ✅ Push user baru
+	// Push baru
 	_, err = docRef.Set(ctx, user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save user"})

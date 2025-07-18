@@ -26,6 +26,7 @@ func main() {
 		{
 			location.POST("/update", controller.SaveLocation)
 			location.GET("/get", controller.GetLocations)
+			location.GET("/realtime", controller.Realtime)
 		}
 	} 
 

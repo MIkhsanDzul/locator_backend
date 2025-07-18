@@ -7,6 +7,7 @@ type Location struct {
 	Timestamp int64 `json:"timestamp"`
 	TimestampFormatted string `json:"timestamp_formatted,omitempty"`
 	Triggered bool `json:"triggered"`
+	IsRealtime bool `json:"is_realtime"`
 }
 type LocationResponse struct {
 	Locations []Location `json:"locations"`
