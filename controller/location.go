@@ -180,7 +180,6 @@ func Realtime(c *gin.Context) {
 	}
 
 	if isRealtime {
-		// Jalankan goroutine untuk update triggered setiap 5 detik
 		go func() {
 			for {
 				// Ambil status terbaru
@@ -204,7 +203,7 @@ func Realtime(c *gin.Context) {
 					"triggered": true,
 				}, firestore.MergeAll)
 
-				time.Sleep(5 * time.Second)
+				time.Sleep(2 * time.Second)
 			}
 		}()
 	} else {
