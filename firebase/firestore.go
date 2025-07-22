@@ -17,7 +17,7 @@ func InitFirestore() {
 	ctx := context.Background()
 	sa := option.WithCredentialsFile("serviceAccountKey.json")
 
-	client, err := firestore.NewClient(ctx, "locator-dccf6", sa)
+	client, err := firestore.NewClient(ctx, "locator-a59e5", sa)
 	if err != nil {
 		log.Fatalf("Failed to connect to Firestore: %v", err)
 	}

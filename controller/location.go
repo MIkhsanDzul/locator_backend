@@ -69,8 +69,8 @@ func SaveLocation(c *gin.Context) {
 		"longitude": loc.Longitude,
 		"is_realtime": isRealtime,
 		"triggered": loc.Triggered,
-		"username":  loc.Username,
 	}
+	// time.Sleep(3 * time.Second)
 	_, err = docRef.Set(context.Background(), firestoreData, firestore.MergeAll)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save location to Firestore"})
@@ -203,7 +203,7 @@ func Realtime(c *gin.Context) {
 					"triggered": true,
 				}, firestore.MergeAll)
 
-				time.Sleep(2 * time.Second)
+				time.Sleep(5 * time.Second)
 			}
 		}()
 	} else {
