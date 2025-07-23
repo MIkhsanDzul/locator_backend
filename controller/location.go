@@ -207,7 +207,7 @@ func Realtime(c *gin.Context) {
 			}
 		}()
 	} else {
-		// Matikan triggered jika non-realtime
+		// Matikan triggered jika is_realtime false
 		if _, err := docRef.Set(context.Background(), map[string]interface{}{
 			"triggered": false,
 		}, firestore.MergeAll); err != nil {
